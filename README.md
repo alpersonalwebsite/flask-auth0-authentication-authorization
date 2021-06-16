@@ -4,18 +4,22 @@
 
 ## Overview
 
-This is an easy, basic and raw example of **HOW to** containerize and deploy a a flask app to `Kubernetes` using `EKS`.
+This is an easy, basic and raw example of **HOW to** implement a Flask application with `Authentication` and `Authorization` using `Auth0`.
 
-Every change in your repository (??? is this right or just some changes) will trigger a new build in Code Build which will result in a new docker image deployed as a container in our EKS cluster. 
+---
+
+Before you proceed, you should understand the difference between `Authentication` and `Authorization`.
+
+* **Authentication** confirms that users are who they say they are. (Answers the WHO?)
+* **Authorization** gives those users permission to access a resource. (Answers the WHAT?)
+
+---
 
 ## Requirements
 
 * Python 3.6+
 * pip
 * Auth0 account
-
-
-You will also need an AWS account (??? both console and programmatic access)
 
 ## Auth0
 
@@ -48,6 +52,7 @@ pip install -r requirements.txt
 
 ```
 cd src
+
 export FLASK_APP=api.py;
 
 flask run --reload
@@ -69,7 +74,7 @@ Replace the placeholders with your values.
 Example:
 
 ```
-https://dev-fv10k111.us.auth0.com/authorize?audience=app&response_type=token&client_id=11111111111111111111111111111111&redirect_uri=http://127.0.0.1:8080/login-results
+https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=11111111111111111111111111111111&redirect_uri=http://127.0.0.1:8080/login-results
 ```
 
 You are going to be redirected to the `login` screen.
@@ -88,7 +93,10 @@ For more information: https://auth0.com/docs/flows/add-login-auth-code-flow
 ### Encoding and decoding JWTs
 
 If you want to practice `how to encode and decode JWTs` execute the attached file:
+
 ```
+cd extras
+
 python jwt-encode-decode.py
 ```
 
@@ -98,3 +106,108 @@ pip install PyJWT==1.7.1
 ```
 
 You can find more information of `WHY we are using this specific version` (at the moment of writing this guide) in the following thread: https://github.com/watson-developer-cloud/assistant-dialog-skill-analysis/issues/37
+
+### Validating JWts
+
+If you want to practice `how to validate JWTs` execute the attached file:
+
+```
+cd extras
+
+python validate-jwt.py
+```
+
+Before executing, install the imported libraries and update the following variables with your values
+
+```py
+AUTH0_DOMAIN = 'dev-fv10k111.us.auth0.com'
+ALGORITHMS = ['RS256']
+API_AUDIENCE = 'bar'
+
+TOKEN = '222222222_etc_etc_etc' # From Auth0 Login Flow 
+```
+
+### Accessing Authorization Headers
+
+If you want to practice `how to access authorization headers` within a Flask app...
+
+#### Option 1
+
+```shell
+cd extras
+
+export FLASK_APP=parsing-headers.py 
+export FLASK_ENV=development
+flask run --reload
+```
+
+Before executing, install the imported libraries.
+
+Once you Flask app is running, make a request with the Authorization header, Bearer as type and a token.
+```
+curl http://127.0.0.1:5000/headers -H "Authorization: Bearer 111"
+```
+
+#### Option 2
+
+If you want to check for a token (note: we are not performing validation) you can extract the logic to a function and use it within several routes.
+
+```shell
+cd extras
+
+export FLASK_APP=parsing-headers-reusable-function.py 
+export FLASK_ENV=development
+flask run --reload
+```
+
+#### Option 3
+
+Same as the previous one but using a decorator.
+
+```shell
+cd extras
+
+export FLASK_APP=parsing-headers-reusable-decorator.py 
+export FLASK_ENV=development
+flask run --reload
+```
+
+### Authorization with Auth0
+
+Until now, we were just retrieving the token. 
+We are going to start taking a token and validate it against our Auth0 API.
+
+Before executing, install the imported libraries and update the following variables with your values
+
+```py
+AUTH0_DOMAIN = 'dev-fv10k111.us.auth0.com'
+ALGORITHMS = ['RS256']
+API_AUDIENCE = 'bar'
+```
+
+Then, run your Flask app...
+
+```shell
+cd extras
+
+export FLASK_APP=authorization-auth0.py
+export FLASK_ENV=development
+flask run --reload
+```
+
+You will need a valid token. 
+Generate it from: https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=2222&redirect_uri=http://127.0.0.1:8080/login-results
+
+*Note:* Replace the tenant domain, audience and client id with yours.
+
+If you make a request with a valid token...
+
+```
+curl http://127.0.0.1:5000/headers -H "Authorization: Bearer eyJhbGciO******"
+```
+
+Result:
+
+```
+Access Granted
+```
