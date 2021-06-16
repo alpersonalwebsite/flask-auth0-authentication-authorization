@@ -26,8 +26,10 @@ Before you proceed, you should understand the difference between `Authentication
 ### Create application
 
 1. Log in, go to the `Dashboard` and then click on `Applications` -> `Applications`
+
 2. You are going to create a new application. Click on `Create Application`
   1. Set a name (example: `Bar`) and select `Regular Web Application`
+
 3. Click on the new application and go to `Settings`
   1. In `Application Login URI`type: `https://127.0.0.1:8100/login`
   1. In `Allowed Callback URLs` type: `http://127.0.0.1:8100/login-results, http://127.0.0.1:8100/tabs/user-page, http://localhost:8100/tabs/user-page`
@@ -36,9 +38,32 @@ Before you proceed, you should understand the difference between `Authentication
 ### Create API
 
 1. Go to the `Dashboard` and then click on `Applications` -> `API`
+
 2. You are going to crate a new API. Click on `Create API`
   1. Set a name (example: `Bar`), an identifier (example: `bar`) and a signing algorithm (for our example, select `RS256`)
 
+### Create the roles and assign permissions
+
+1. Go to the `Dashboard` -> `Applications` -> `APIs` -> `bar` and **activate** `Enable RBAC` and also `Add Permissions in the Access Token`. Then, **Save**
+
+2. Go to `Dashboard` -> `Applications` -> `bar` and click on the `Permissions` tab.
+Add the following permissions/scope and descriptions
+
+```
+post:drinks	          Creates a new drink	
+get:drinks-detail	    Gets drink detail	
+patch:drinks	        Updates drink	
+delete:drinks	        Delete drink
+```
+
+3. Go to `Dashboard` -> `Management` -> `Roles` and click on `Create Role`
+Click on the `Permissions` tab, select the proper API (in our case `bar`) and add the permissions you want for this role.
+
+4. Go to `Dashboard` -> `Management` -> `Users`
+You will need an effective user. You can create it here, or through the `Auth0 Sign Up Flow`: https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=11111111111111111111111111111111&redirect_uri=http://127.0.0.1:8080/login-results
+If you go this path, you can also use `Single Sign-On`.
+
+Once you have your user, click on the `...` next to his/her name and `assign` the roles(s).
 
 ## Local development
 
@@ -174,8 +199,8 @@ flask run --reload
 
 ### Authorization with Auth0
 
-Until now, we were just retrieving the token. 
-We are going to start taking a token and validate it against our Auth0 API.
+Until now, we were just retrieving the `token` that the user was passing through the `Authorization` headers.
+We are going to start taking the token and validate it against our Auth0 API.
 
 Before executing, install the imported libraries and update the following variables with your values
 
@@ -211,3 +236,77 @@ Result:
 ```
 Access Granted
 ```
+
+### Flask and Role Base Access Control (RBAC)
+
+We are going to validate the token against our Auth0 API and check for a particular permission.
+
+In our example, the user that hits the route `/headers` must pass a valid token that contains on its payload the following permission: `get:drinks-detail`
+
+Before executing, install the imported libraries and update the following variables with your values
+
+```py
+AUTH0_DOMAIN = 'dev-fv10k111.us.auth0.com'
+ALGORITHMS = ['RS256']
+API_AUDIENCE = 'bar'
+```
+
+Then, run your Flask app...
+
+```shell
+cd extras
+
+export FLASK_APP=rbac.py
+export FLASK_ENV=development
+flask run --reload
+```
+
+If you make a request with a valid token...
+
+```
+curl http://127.0.0.1:5000/headers -H "Authorization: Bearer eyJhbGciO******"
+```
+
+Result:
+
+```
+{'iss': 'https://dev-fv10k111.us.auth0.com/', 'sub': 'auth0|***', 'aud': 'bar', 'iat': 1623858021, 'exp': 1623865221, 'azp': '***', 'scope': '', 'permissions': ['get:drinks-detail']}
+```
+
+### Handling the token in the frontend
+Ref: https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
+
+Since JWT are encoded using base64 wen can unpack the token.
+
+```js
+function parseJwt(token) {
+   const base64Url = token.split('.')[1];
+   const base64 = decodeURIComponent(atob(base64Url).split('').map((c)=>{
+       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+   }).join(''));
+
+   return JSON.parse(base64);
+}
+
+const user = parseJwt('eyJhbGciO******')
+
+console.log(user)
+
+if (user.permissions.indexOf('get:drinks-detail') === -1) throw 'User does not have the proper permission'
+```
+
+Output:
+
+```
+{
+  iss: 'https://dev-fv10k111.us.auth0.com/',
+  sub: 'auth0|***',
+  aud: 'bar',
+  iat: 1623858021,
+  exp: 1623865221,
+  azp: '***',
+  scope: '',
+  permissions: [ 'get:drinks-detail' ]
+}
+```
+
