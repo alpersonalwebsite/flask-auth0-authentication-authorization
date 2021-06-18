@@ -1,10 +1,10 @@
 # Flask: Authentication and Authorization with Auth0
 
-**THIS IS UNDER DEVELOPMENT**
-
 ## Overview
 
 This is an easy, basic and raw example of **HOW to** implement a Flask application with `Authentication` and `Authorization` using `Auth0`.
+
+**IMPORTANT:** This project doesn't handle `frontend`. You can create your application and expose it through the port `8100`
 
 ---
 
@@ -24,6 +24,14 @@ Before you proceed, you should understand the difference between `Authentication
 ## Auth0
 
 ### Create application
+
+---
+
+*Preliminary note:*
+The `frontend` app base URL is: http://127.0.0.1:8100
+The `backend` server base URL is: http://127.0.0.1:5000
+
+---
 
 1. Log in, go to the `Dashboard` and then click on `Applications` -> `Applications`
 
@@ -57,10 +65,21 @@ delete:drinks	        Delete drink
 ```
 
 3. Go to `Dashboard` -> `Management` -> `Roles` and click on `Create Role`
-Click on the `Permissions` tab, select the proper API (in our case `bar`) and add the permissions you want for this role.
+You should create at least 2 roles: `Barista` and `Manager`
 
-4. Go to `Dashboard` -> `Management` -> `Users`
-You will need an effective user. You can create it here, or through the `Auth0 Sign Up Flow`: https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=11111111111111111111111111111111&redirect_uri=http://127.0.0.1:8080/login-results
+4. Click on the `Permissions` tab, select the proper API (in our case `bar`) and add the permissions for the roles.
+
+* Barista
+  - get:drinks-detail	
+
+* Manager
+  - delete:drinks	
+  - get:drinks-detail	
+  - patch:drinks	
+  - post:drinks
+
+5. Go to `Dashboard` -> `Management` -> `Users`
+You will need an effective user. You can create it here, or through the `Auth0 Sign Up Flow`: https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=11111111111111111111111111111111&redirect_uri=http://127.0.0.1:8100/login-results
 If you go this path, you can also use `Single Sign-On`.
 
 Once you have your user, click on the `...` next to his/her name and `assign` the roles(s).
@@ -73,6 +92,13 @@ Once you have your user, click on the `...` next to his/her name and `assign` th
 pip install -r requirements.txt
 ```
 
+### Set the environment variables
+
+```bash
+export AUTH0_DOMAIN='dev-fv10k111.us.auth0.com'
+export API_AUDIENCE='bar'
+```
+
 ### Run Flask App
 
 ```
@@ -82,6 +108,113 @@ export FLASK_APP=api.py;
 
 flask run --reload
 ```
+
+### Endpoints
+
+Responses (including errors) are returned as JSON objects.
+
+#### Error Handling
+Errors format
+
+```json
+{
+  "error": 404,
+  "message": "resource not found",
+  "success": false
+}
+```
+
+**Error types**
+* 400: Bad request
+* 401: Unauthorized
+* 404: Resource not found
+* 422: Unprocessable
+
+#### GET /drinks
+* Returns an object with the key drinks containing an array of objects with the SHORT format
+* Publicly available
+
+##### Request
+
+```
+curl http://127.0.0.1:5000/drinks
+```
+
+##### Response
+
+```json
+{"drinks":[{"id":1,"recipe":[{"color":"blue","parts":1}],"title":"water"},{"id":2,"recipe":[{"color":"green","parts":2}],"title":"test"}],"success":true}
+```
+
+#### GET /drinks-detail
+* Returns an object with the key drinks containing an array of objects with the LONG format
+* Requires a valid JWT with the permission `get:drinks-detail`
+* Both, Barista and Manager have access
+
+##### Request
+
+```
+curl http://127.0.0.1:5000/drinks-detail -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2MjQ0Njk3OTEsIm5iZiI6MTYyMzI2MDE5MSwiZW1haWwiOiJlbWFpbEBlbWFpbC5jb20ifQ.L1FHrGkceqamGyyQeTJ2rjL8B_4xBcc73ESswFWiIus"
+```
+
+##### Response
+
+```json
+{"drinks":[{"id":1,"recipe":[{"color":"blue","name":"water","parts":1}],"title":"water"}],"success":true}
+```
+
+#### POST /drinks
+* Returns an object with the key drinks containing the newly created drink (object)
+* Requires a valid JWT with the permission `post:drinks`
+* Only Manager has access
+
+##### Request
+
+```
+curl http://127.0.0.1:5000/drinks -X POST -H "Content-Type: application/json" -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2MjQ0Njk3OTEsIm5iZiI6MTYyMzI2MDE5MSwiZW1haWwiOiJlbWFpbEBlbWFpbC5jb20ifQ.L1FHrGkceqamGyyQeTJ2rjL8B_4xBcc73ESswFWiIus" -d '{ "title": "test", "recipe": [{ "name": "name-test", "color": "green", "parts": 2 }] }'
+
+```
+
+##### Response
+
+```json
+{"drinks":[{"id":2,"recipe":[{"color":"green","name":"name-test","parts":2}],"title":"test"}],"success":true}
+```
+
+#### PATCH /drinks/<id>
+* Returns an object with the key drinks containing the updated drink (object)
+* Requires a valid JWT with the permission `patch:drinks`
+* Only Manager has access
+
+##### Request
+
+```
+curl http://127.0.0.1:5000/drinks/2 -X PATCH -H "Content-Type: application/json" -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2MjQ0Njk3OTEsIm5iZiI6MTYyMzI2MDE5MSwiZW1haWwiOiJlbWFpbEBlbWFpbC5jb20ifQ.L1FHrGkceqamGyyQeTJ2rjL8B_4xBcc73ESswFWiIus" -d '{ "title": "updated-title", "recipe": [{ "name": "name-test", "color": "green", "parts": 2 }] }'
+```
+
+##### Response
+
+```json
+{"drinks":[{"id":2,"recipe":[{"color":"green","name":"name-test","parts":2}],"title":"updated-title"}],"success":true}
+```
+
+#### DELETE /drinks/<id>
+* Returns an object with the key delete and the id of the deleted drink (object)
+* Requires a valid JWT with the permission `delete:drinks`
+* Only Manager has access
+
+##### Request
+
+```
+curl http://127.0.0.1:5000/drinks/2 -X DELETE -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2MjQ0Njk3OTEsIm5iZiI6MTYyMzI2MDE5MSwiZW1haWwiOiJlbWFpbEBlbWFpbC5jb20ifQ.L1FHrGkceqamGyyQeTJ2rjL8B_4xBcc73ESswFWiIus"
+```
+
+##### Response
+
+```json
+{"delete":2,"success":true}
+```
+
 ---
 
 ## Notes:
@@ -99,14 +232,14 @@ Replace the placeholders with your values.
 Example:
 
 ```
-https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=11111111111111111111111111111111&redirect_uri=http://127.0.0.1:8080/login-results
+https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=11111111111111111111111111111111&redirect_uri=http://127.0.0.1:8100/login-results
 ```
 
 You are going to be redirected to the `login` screen.
 If you inspect the URI...
 
 ```
-http://127.0.0.1:8080/login-results#access_token=222222222_etc_etc_etc&expires_in=7200&token_type=Bearer
+http://127.0.0.1:8100/login-results#access_token=222222222_etc_etc_etc&expires_in=7200&token_type=Bearer
 ```
 
 You can copy the `access token` and take a look of the 3 parts of the `JWT` (Header, Payload and Signature) in: https://jwt.io/
@@ -221,7 +354,7 @@ flask run --reload
 ```
 
 You will need a valid token. 
-Generate it from: https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=2222&redirect_uri=http://127.0.0.1:8080/login-results
+Generate it from: https://dev-fv10k111.us.auth0.com/authorize?audience=bar&response_type=token&client_id=2222&redirect_uri=http://127.0.0.1:8100/login-results
 
 *Note:* Replace the tenant domain, audience and client id with yours.
 
@@ -310,3 +443,8 @@ Output:
 }
 ```
 
+---
+
+## Kudos
+
+Extended version of Udacity's FSN Coffee Shop
