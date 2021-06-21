@@ -54,17 +54,17 @@ The `backend` server base URL is: http://127.0.0.1:5000
 
 1. Go to the `Dashboard` -> `Applications` -> `APIs` -> `bar` and **activate** `Enable RBAC` and also `Add Permissions in the Access Token`. Then, **Save**
 
-2. Go to `Dashboard` -> `Applications` -> `bar` and click on the `Permissions` tab.
+2. Go to `Dashboard` -> `API` -> `bar` and click on the `Permissions` tab.
 Add the following permissions/scope and descriptions
 
 ```
-post:drinks	          Creates a new drink	
+post:drinks	            Creates a new drink	
 get:drinks-detail	    Gets drink detail	
 patch:drinks	        Updates drink	
 delete:drinks	        Delete drink
 ```
 
-3. Go to `Dashboard` -> `Management` -> `Roles` and click on `Create Role`
+3. Go to `Dashboard` -> `User Management` -> `Roles` and click on `Create Role`
 You should create at least 2 roles: `Barista` and `Manager`
 
 4. Click on the `Permissions` tab, select the proper API (in our case `bar`) and add the permissions for the roles.
