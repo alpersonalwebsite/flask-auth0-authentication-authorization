@@ -100,9 +100,9 @@ def verify_decode_jwt(token):
                 'description': 'Unable to parse authentication token.'
             }, 400)
     raise AuthError({
-                'code': 'invalid_header',
+        'code': 'invalid_header',
                 'description': 'Unable to find the appropriate key.'
-            }, 400)
+    }, 400)
 
 
 def requires_auth(f):
@@ -111,11 +111,12 @@ def requires_auth(f):
         token = get_token_auth_header()
         try:
             payload = verify_decode_jwt(token)
-        except:
+        except BaseException:
             abort(401)
         return f(payload, *args, **kwargs)
 
     return wrapper
+
 
 @app.route('/headers')
 @requires_auth

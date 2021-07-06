@@ -109,6 +109,40 @@ export FLASK_APP=api.py;
 flask run --reload
 ```
 
+### Linting
+
+We are going to use `pycodestyle` to check for pep8 issues and `autope8` to help us fix some of those issues.
+
+If you don't have these packages, please, install them.
+
+```shell
+pip install pycodestyle
+pip install autopep8
+```
+
+Then, at the root level:
+
+```shell
+pycodestyle src/
+
+pycodestyle extras/
+```
+
+The output, in case of linting errors, would look like:
+
+```shell
+./extras/validate-jwt.py:20:1: E266 too many leading '#' for block comment
+./extras/validate-jwt.py:21:1: E302 expected 2 blank lines, found 1
+./extras/validate-jwt.py:25:1: W293 blank line contains whitespace
+```
+
+Now, you can use `autopep8` to start fixing some violations. 
+
+
+```shell
+autopep8 --in-place --aggressive --aggressive extras/validate-jwt.py
+```
+
 ### Endpoints
 
 Responses (including errors) are returned as JSON objects.

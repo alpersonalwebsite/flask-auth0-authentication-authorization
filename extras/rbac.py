@@ -11,6 +11,7 @@ AUTH0_DOMAIN = 'dev-fv10k111.us.auth0.com'
 ALGORITHMS = ['RS256']
 API_AUDIENCE = 'bar'
 
+
 class AuthError(Exception):
     def __init__(self, error, status_code):
         self.error = error
@@ -99,9 +100,10 @@ def verify_decode_jwt(token):
                 'description': 'Unable to parse authentication token.'
             }, 400)
     raise AuthError({
-                'code': 'invalid_header',
+        'code': 'invalid_header',
                 'description': 'Unable to find the appropriate key.'
-            }, 400)
+    }, 400)
+
 
 def check_permissions(permission, payload):
     if 'permissions' not in payload:
@@ -117,22 +119,24 @@ def check_permissions(permission, payload):
         }, 401)
     return True
 
-def requires_auth(permission = ''):
-  def requires_auth_decorator(f):
-      @wraps(f)
-      def wrapper(*args, **kwargs):
-          token = get_token_auth_header()
-          try:
-              payload = verify_decode_jwt(token)
-          except:
-              abort(401)
 
-          check_permissions(permission, payload)
+def requires_auth(permission=''):
+    def requires_auth_decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            token = get_token_auth_header()
+            try:
+                payload = verify_decode_jwt(token)
+            except BaseException:
+                abort(401)
 
-          return f(payload, *args, **kwargs)
+            check_permissions(permission, payload)
 
-      return wrapper
-  return requires_auth_decorator
+            return f(payload, *args, **kwargs)
+
+        return wrapper
+    return requires_auth_decorator
+
 
 @app.route('/headers')
 @requires_auth('get:drinks-detail')
