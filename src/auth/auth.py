@@ -191,7 +191,14 @@ def requires_auth(permission=''):
             token = get_token_auth_header()
             try:
                 payload = verify_decode_jwt(token)
+            except AuthError:
+                # Let the specific failure (expired, bad claims, unknown key)
+                # reach the AuthError handler with its own status/description
+                # instead of collapsing into a generic 401.
+                raise
             except Exception:
+                # Malformed token or an unreachable JWKS endpoint: deny with 401
+                # rather than leaking a 500.
                 abort(401)
 
             check_permissions(permission, payload)
