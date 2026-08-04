@@ -88,7 +88,7 @@ def post_drink(jwt):
     try:
         drink = Drink(title=drink_title, recipe=parsed_drink_recipe)
         drink.insert()
-    except Exception:
+    except exc.IntegrityError:
         db.session.rollback()
         abort(422)
 
@@ -132,7 +132,7 @@ def update_drink(jwt, drink_id):
             drink.recipe = parsed_drink_recipe
 
         drink.update()
-    except Exception:
+    except exc.IntegrityError:
         db.session.rollback()
         abort(422)
 
@@ -164,7 +164,7 @@ def delete_drink(jwt, drink_id):
 
     try:
         drink.delete()
-    except Exception:
+    except exc.IntegrityError:
         db.session.rollback()
         abort(422)
 
