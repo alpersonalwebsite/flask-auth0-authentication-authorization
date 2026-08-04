@@ -57,8 +57,6 @@ def get_drinks_details(jwt):
     drinks = Drink.query.order_by(Drink.id).all()
     parsed_drinks = [drink.long() for drink in drinks]
 
-    print(parsed_drinks)
-
     return jsonify({
         'success': True,
         'drinks': parsed_drinks
