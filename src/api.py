@@ -4,7 +4,7 @@ from sqlalchemy import exc
 import json
 from flask_cors import CORS
 
-from .database.models import db_drop_and_create_all, setup_db, Drink
+from .database.models import db, db_drop_and_create_all, setup_db, Drink
 from .auth.auth import AuthError, requires_auth
 
 app = Flask(__name__)
@@ -90,7 +90,8 @@ def post_drink(jwt):
     try:
         drink = Drink(title=drink_title, recipe=parsed_drink_recipe)
         drink.insert()
-    except BaseException:
+    except Exception:
+        db.session.rollback()
         abort(422)
 
     return jsonify({
@@ -133,7 +134,8 @@ def update_drink(jwt, drink_id):
             drink.recipe = parsed_drink_recipe
 
         drink.update()
-    except BaseException:
+    except Exception:
+        db.session.rollback()
         abort(422)
 
     return jsonify({
@@ -164,7 +166,8 @@ def delete_drink(jwt, drink_id):
 
     try:
         drink.delete()
-    except BaseException:
+    except Exception:
+        db.session.rollback()
         abort(422)
 
     return jsonify({
