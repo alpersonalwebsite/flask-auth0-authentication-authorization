@@ -1,6 +1,6 @@
 import os
 import json
-from flask import request, _request_ctx_stack, abort
+from flask import request, abort
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
@@ -186,7 +186,7 @@ def requires_auth(permission=''):
             token = get_token_auth_header()
             try:
                 payload = verify_decode_jwt(token)
-            except BaseException:
+            except Exception:
                 abort(401)
 
             check_permissions(permission, payload)
