@@ -261,6 +261,21 @@ def unprocessable(error):
 
 
 """
+Error handling for an unexpected server error, so that even this case keeps the
+JSON contract instead of returning Flask's HTML error page
+"""
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    return jsonify({
+        "success": False,
+        "error": 500,
+        "message": "internal server error"
+    }), 500
+
+
+"""
 Error handling for AuthError
 """
 
