@@ -12,12 +12,13 @@ setup_db(app)
 CORS(app)
 
 """
-Initialize the datbase
-!! NOTE THIS WILL DROP ALL RECORDS AND START YOUR DB FROM SCRATCH
-!! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
-!! Running this funciton will add one
+Initialize the database.
+!! WARNING: db_drop_and_create_all() DROPS ALL RECORDS and reseeds from scratch.
+Uncomment it only for a first run (or to reset); leaving it active wipes the
+database on every start/reload. The repo already ships a seeded database.db, so
+it stays commented by default.
 """
-db_drop_and_create_all()
+# db_drop_and_create_all()
 
 # ROUTES
 
