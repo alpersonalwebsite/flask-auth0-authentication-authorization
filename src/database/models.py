@@ -66,8 +66,16 @@ class Drink(db.Model):
     """
 
     def short(self):
-        short_recipe = [{'color': r['color'], 'parts': r['parts']}
-                        for r in json.loads(self.recipe)]
+        # Tolerate a recipe that isn't a list of objects. The API validates on
+        # write, but this method backs the public GET /drinks, so a row stored
+        # by an earlier build must not be able to fail the whole response.
+        recipe = json.loads(self.recipe) if self.recipe else []
+
+        if not isinstance(recipe, list):
+            recipe = []
+
+        short_recipe = [{'color': r.get('color'), 'parts': r.get('parts')}
+                        for r in recipe if isinstance(r, dict)]
         return {
             'id': self.id,
             'title': self.title,
