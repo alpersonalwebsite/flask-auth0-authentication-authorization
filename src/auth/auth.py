@@ -9,6 +9,9 @@ from urllib.request import urlopen
 AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN', 'tenant.auth0.com')
 ALGORITHMS = ['RS256']
 API_AUDIENCE = os.getenv('API_AUDIENCE', 'dev')
+# Bound the JWKS fetch so an unreachable Auth0 denies the request instead of
+# hanging it (urlopen has no default timeout).
+JWKS_FETCH_TIMEOUT = 5
 
 # AuthError Exception
 """
@@ -114,7 +117,9 @@ verify_decode_jwt(token) method
 
 
 def verify_decode_jwt(token):
-    jsonurl = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
+    jsonurl = urlopen(
+        f'https://{AUTH0_DOMAIN}/.well-known/jwks.json',
+        timeout=JWKS_FETCH_TIMEOUT)
     jwks = json.loads(jsonurl.read())
     unverified_header = jwt.get_unverified_header(token)
     rsa_key = {}
