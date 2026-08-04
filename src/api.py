@@ -36,6 +36,21 @@ def validated_body():
     return body
 
 
+def validated_title(title):
+    """Return a usable title, or answer 400.
+
+    The title has to be a non-blank string. Checking only for falsiness lets a
+    truthy non-string through to a String(80) column, where a list or an object
+    raises at commit time (an InterfaceError, which is not the IntegrityError
+    the handlers catch, so it surfaces as a 500) and a number or a boolean is
+    silently coerced to '123' or '1'.
+    """
+    if not isinstance(title, str) or not title.strip():
+        abort(400)
+
+    return title
+
+
 def validated_recipe(recipe):
     """Serialize a recipe, rejecting anything Drink.short() cannot read.
 
@@ -114,11 +129,7 @@ def get_drinks_details(jwt):
 def post_drink(jwt):
     body = validated_body()
 
-    drink_title = body.get('title')
-
-    if not drink_title:
-        abort(400)
-
+    drink_title = validated_title(body.get('title'))
     parsed_drink_recipe = validated_recipe(body.get('recipe'))
 
     try:
@@ -161,8 +172,8 @@ def update_drink(jwt, drink_id):
     if 'title' not in body and 'recipe' not in body:
         abort(400)
 
-    if 'title' in body and not body['title']:
-        abort(400)
+    if 'title' in body:
+        validated_title(body['title'])
 
     if 'recipe' in body:
         parsed_drink_recipe = validated_recipe(body['recipe'])
