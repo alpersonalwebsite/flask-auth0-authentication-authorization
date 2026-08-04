@@ -197,8 +197,8 @@ def requires_auth(permission=''):
                 # instead of collapsing into a generic 401.
                 raise
             except Exception:
-                # Malformed token or an unreachable JWKS endpoint: deny with 401
-                # rather than leaking a 500.
+                # Malformed token or an unreachable JWKS endpoint: deny
+                # with 401 rather than leaking a 500.
                 abort(401)
 
             check_permissions(permission, payload)
