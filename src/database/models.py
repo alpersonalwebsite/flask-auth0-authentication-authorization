@@ -61,14 +61,30 @@ class Drink(db.Model):
     recipe = Column(String(180), nullable=False)
 
     """
+    parsed_recipe()
+        the stored recipe as a list, whatever the column actually holds
+    """
+
+    def parsed_recipe(self):
+        # The API validates on write, but short() and long() back the GET
+        # endpoints, so a row written by an earlier build (or by hand) must not
+        # be able to fail the whole response. Anything that is not valid JSON,
+        # or is valid JSON but not a list, reads as an empty recipe.
+        try:
+            recipe = json.loads(self.recipe) if self.recipe else []
+        except ValueError:
+            return []
+
+        return recipe if isinstance(recipe, list) else []
+
+    """
     short()
         short form representation of the Drink model
     """
 
     def short(self):
-        print(json.loads(self.recipe))
-        short_recipe = [{'color': r['color'], 'parts': r['parts']}
-                        for r in json.loads(self.recipe)]
+        short_recipe = [{'color': r.get('color'), 'parts': r.get('parts')}
+                        for r in self.parsed_recipe() if isinstance(r, dict)]
         return {
             'id': self.id,
             'title': self.title,
@@ -84,7 +100,7 @@ class Drink(db.Model):
         return {
             'id': self.id,
             'title': self.title,
-            'recipe': json.loads(self.recipe)
+            'recipe': self.parsed_recipe()
         }
 
     """

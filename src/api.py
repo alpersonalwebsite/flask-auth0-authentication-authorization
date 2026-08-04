@@ -1,23 +1,75 @@
-import os
 from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
 from flask_cors import CORS
 
-from .database.models import db_drop_and_create_all, setup_db, Drink
-from .auth.auth import AuthError, requires_auth
+from database.models import db, db_drop_and_create_all, setup_db, Drink
+from auth.auth import AuthError, requires_auth
 
 app = Flask(__name__)
 setup_db(app)
 CORS(app)
 
 """
-Initialize the datbase
-!! NOTE THIS WILL DROP ALL RECORDS AND START YOUR DB FROM SCRATCH
-!! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
-!! Running this funciton will add one
+Initialize the database.
+!! WARNING: db_drop_and_create_all() DROPS ALL RECORDS and reseeds
+from scratch.
+Uncomment it only for a first run (or to reset); leaving it active wipes the
+database on every start/reload. The repo already ships a seeded database.db, so
+it stays commented by default.
 """
-db_drop_and_create_all()
+# db_drop_and_create_all()
+
+
+def validated_body():
+    """Return the request body as an object, or answer 400.
+
+    silent=True keeps a missing or non-JSON body from raising. Falsiness alone
+    is not a sufficient guard though: a body that is valid JSON but not an
+    object (an array, a string, a number) is truthy and still has no .get.
+    """
+    body = request.get_json(silent=True)
+
+    if not isinstance(body, dict):
+        abort(400)
+
+    return body
+
+
+def validated_title(title):
+    """Return a usable title, or answer 400.
+
+    The title has to be a non-blank string. Checking only for falsiness lets a
+    truthy non-string through to a String(80) column, where a list or an object
+    raises at commit time (an InterfaceError, which is not the IntegrityError
+    the handlers catch, so it surfaces as a 500) and a number or a boolean is
+    silently coerced to '123' or '1'.
+    """
+    if not isinstance(title, str) or not title.strip():
+        abort(400)
+
+    return title
+
+
+def validated_recipe(recipe):
+    """Serialize a recipe, rejecting anything Drink.short() cannot read.
+
+    short() iterates the stored recipe and indexes each entry, and it backs the
+    PUBLIC GET /drinks. So a recipe that is missing, not a list, or not made of
+    objects would let an authorized writer break that endpoint for every
+    visitor until the row is removed. Validate before it reaches the database.
+    """
+    if not isinstance(recipe, list) or not recipe:
+        abort(400)
+
+    for ingredient in recipe:
+        if not isinstance(ingredient, dict):
+            abort(400)
+        if 'color' not in ingredient or 'parts' not in ingredient:
+            abort(400)
+
+    return json.dumps(recipe)
+
 
 # ROUTES
 
@@ -56,8 +108,6 @@ def get_drinks_details(jwt):
     drinks = Drink.query.order_by(Drink.id).all()
     parsed_drinks = [drink.long() for drink in drinks]
 
-    print(parsed_drinks)
-
     return jsonify({
         'success': True,
         'drinks': parsed_drinks
@@ -77,19 +127,16 @@ def get_drinks_details(jwt):
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
 def post_drink(jwt):
-    body = request.get_json()
+    body = validated_body()
 
-    drink_title = body.get('title')
-    drink_recipe = body.get('recipe')
-    parsed_drink_recipe = json.dumps(drink_recipe)
-
-    if drink_title == '':
-        abort(400)
+    drink_title = validated_title(body.get('title'))
+    parsed_drink_recipe = validated_recipe(body.get('recipe'))
 
     try:
         drink = Drink(title=drink_title, recipe=parsed_drink_recipe)
         drink.insert()
-    except BaseException:
+    except exc.IntegrityError:
+        db.session.rollback()
         abort(422)
 
     return jsonify({
@@ -113,26 +160,36 @@ def post_drink(jwt):
 @app.route('/drinks/<int:drink_id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
 def update_drink(jwt, drink_id):
-    body = request.get_json()
+    body = validated_body()
 
-    drink_title = body.get('title')
-    drink_recipe = body.get('recipe')
-    parsed_drink_recipe = json.dumps(drink_recipe)
-
+    # Resolve the resource before validating the body's fields, so a request
+    # against an id that does not exist is a 404 whatever those fields say. A
+    # body that is not a JSON object stays a 400, because validated_body() runs
+    # first and there is nothing to interpret either way.
     drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
 
     if drink is None:
         abort(404)
 
+    if 'title' not in body and 'recipe' not in body:
+        abort(400)
+
+    if 'title' in body:
+        validated_title(body['title'])
+
+    if 'recipe' in body:
+        parsed_drink_recipe = validated_recipe(body['recipe'])
+
     try:
         if 'title' in body:
-            drink.title = drink_title
+            drink.title = body['title']
 
         if 'recipe' in body:
             drink.recipe = parsed_drink_recipe
 
         drink.update()
-    except BaseException:
+    except exc.IntegrityError:
+        db.session.rollback()
         abort(422)
 
     return jsonify({
@@ -163,7 +220,8 @@ def delete_drink(jwt, drink_id):
 
     try:
         drink.delete()
-    except BaseException:
+    except exc.IntegrityError:
+        db.session.rollback()
         abort(422)
 
     return jsonify({
@@ -227,6 +285,21 @@ def unprocessable(error):
         "error": 422,
         "message": "unprocessable"
     }), 422
+
+
+"""
+Error handling for an unexpected server error, so that even this case keeps the
+JSON contract instead of returning Flask's HTML error page
+"""
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    return jsonify({
+        "success": False,
+        "error": 500,
+        "message": "internal server error"
+    }), 500
 
 
 """

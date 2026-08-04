@@ -159,10 +159,16 @@ Errors format
 ```
 
 **Error types**
-* 400: Bad request
+* 400: Bad request (also returned when the body is not JSON, when `title` is
+  missing or empty, or when `recipe` is not a non-empty list of objects that each
+  carry `color` and `parts`). Two token problems also report 400 rather than 401,
+  because that is the status these `AuthError`s declare: a `kid` that no signing
+  key matches, and a token that cannot be parsed. Both are still denials, so a
+  client should treat 400 and 401 alike on a protected route
 * 401: Unauthorized
 * 404: Resource not found
-* 422: Unprocessable
+* 422: Unprocessable (for example, a `title` that another drink already uses)
+* 500: Internal server error
 
 #### GET /drinks
 * Returns an object with the key drinks containing an array of objects with the SHORT format

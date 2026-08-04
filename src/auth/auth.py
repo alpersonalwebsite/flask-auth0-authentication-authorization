@@ -1,6 +1,6 @@
 import os
 import json
-from flask import request, _request_ctx_stack, abort
+from flask import request, abort
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
@@ -9,6 +9,9 @@ from urllib.request import urlopen
 AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN', 'tenant.auth0.com')
 ALGORITHMS = ['RS256']
 API_AUDIENCE = os.getenv('API_AUDIENCE', 'dev')
+# Bound the JWKS fetch so an unreachable Auth0 denies the request instead of
+# hanging it (urlopen has no default timeout).
+JWKS_FETCH_TIMEOUT = 5
 
 # AuthError Exception
 """
@@ -114,7 +117,9 @@ verify_decode_jwt(token) method
 
 
 def verify_decode_jwt(token):
-    jsonurl = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
+    jsonurl = urlopen(
+        f'https://{AUTH0_DOMAIN}/.well-known/jwks.json',
+        timeout=JWKS_FETCH_TIMEOUT)
     jwks = json.loads(jsonurl.read())
     unverified_header = jwt.get_unverified_header(token)
     rsa_key = {}
@@ -186,7 +191,14 @@ def requires_auth(permission=''):
             token = get_token_auth_header()
             try:
                 payload = verify_decode_jwt(token)
-            except BaseException:
+            except AuthError:
+                # Let the specific failure (expired, bad claims, unknown key)
+                # reach the AuthError handler with its own status/description
+                # instead of collapsing into a generic 401.
+                raise
+            except Exception:
+                # Malformed token or an unreachable JWKS endpoint: deny
+                # with 401 rather than leaking a 500.
                 abort(401)
 
             check_permissions(permission, payload)
