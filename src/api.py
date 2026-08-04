@@ -21,6 +21,21 @@ it stays commented by default.
 # db_drop_and_create_all()
 
 
+def validated_body():
+    """Return the request body as an object, or answer 400.
+
+    silent=True keeps a missing or non-JSON body from raising. Falsiness alone
+    is not a sufficient guard though: a body that is valid JSON but not an
+    object (an array, a string, a number) is truthy and still has no .get.
+    """
+    body = request.get_json(silent=True)
+
+    if not isinstance(body, dict):
+        abort(400)
+
+    return body
+
+
 def validated_recipe(recipe):
     """Serialize a recipe, rejecting anything Drink.short() cannot read.
 
@@ -97,10 +112,7 @@ def get_drinks_details(jwt):
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
 def post_drink(jwt):
-    # silent=True: a missing or non-JSON body becomes {} and is reported as a
-    # 400 below, instead of raising an AttributeError and returning an
-    # HTML 500.
-    body = request.get_json(silent=True) or {}
+    body = validated_body()
 
     drink_title = body.get('title')
 
@@ -137,7 +149,7 @@ def post_drink(jwt):
 @app.route('/drinks/<int:drink_id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
 def update_drink(jwt, drink_id):
-    body = request.get_json(silent=True) or {}
+    body = validated_body()
 
     # Resolve the resource before validating the payload, so a request against
     # an id that does not exist is a 404 whatever the body looks like.
