@@ -66,10 +66,14 @@ class Drink(db.Model):
     """
 
     def short(self):
-        # Tolerate a recipe that isn't a list of objects. The API validates on
-        # write, but this method backs the public GET /drinks, so a row stored
-        # by an earlier build must not be able to fail the whole response.
-        recipe = json.loads(self.recipe) if self.recipe else []
+        # Tolerate a recipe that isn't a list of objects, and one that isn't
+        # even valid JSON. The API validates on write, but this method backs
+        # the public GET /drinks, so a row stored by an earlier build must not
+        # be able to fail the whole response.
+        try:
+            recipe = json.loads(self.recipe) if self.recipe else []
+        except ValueError:
+            recipe = []
 
         if not isinstance(recipe, list):
             recipe = []
