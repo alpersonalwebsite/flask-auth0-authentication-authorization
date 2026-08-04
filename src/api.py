@@ -20,6 +20,27 @@ it stays commented by default.
 """
 # db_drop_and_create_all()
 
+
+def validated_recipe(recipe):
+    """Serialize a recipe, rejecting anything Drink.short() cannot read.
+
+    short() iterates the stored recipe and indexes each entry, and it backs the
+    PUBLIC GET /drinks. So a recipe that is missing, not a list, or not made of
+    objects would let an authorized writer break that endpoint for every
+    visitor until the row is removed. Validate before it reaches the database.
+    """
+    if not isinstance(recipe, list) or not recipe:
+        abort(400)
+
+    for ingredient in recipe:
+        if not isinstance(ingredient, dict):
+            abort(400)
+        if 'color' not in ingredient or 'parts' not in ingredient:
+            abort(400)
+
+    return json.dumps(recipe)
+
+
 # ROUTES
 
 """
@@ -76,14 +97,17 @@ def get_drinks_details(jwt):
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
 def post_drink(jwt):
-    body = request.get_json()
+    # silent=True: a missing or non-JSON body becomes {} and is reported as a
+    # 400 below, instead of raising an AttributeError and returning an
+    # HTML 500.
+    body = request.get_json(silent=True) or {}
 
     drink_title = body.get('title')
-    drink_recipe = body.get('recipe')
-    parsed_drink_recipe = json.dumps(drink_recipe)
 
-    if drink_title == '':
+    if not drink_title:
         abort(400)
+
+    parsed_drink_recipe = validated_recipe(body.get('recipe'))
 
     try:
         drink = Drink(title=drink_title, recipe=parsed_drink_recipe)
@@ -113,11 +137,16 @@ def post_drink(jwt):
 @app.route('/drinks/<int:drink_id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
 def update_drink(jwt, drink_id):
-    body = request.get_json()
+    body = request.get_json(silent=True) or {}
 
-    drink_title = body.get('title')
-    drink_recipe = body.get('recipe')
-    parsed_drink_recipe = json.dumps(drink_recipe)
+    if 'title' not in body and 'recipe' not in body:
+        abort(400)
+
+    if 'title' in body and not body['title']:
+        abort(400)
+
+    if 'recipe' in body:
+        parsed_drink_recipe = validated_recipe(body['recipe'])
 
     drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
 
@@ -126,7 +155,7 @@ def update_drink(jwt, drink_id):
 
     try:
         if 'title' in body:
-            drink.title = drink_title
+            drink.title = body['title']
 
         if 'recipe' in body:
             drink.recipe = parsed_drink_recipe
