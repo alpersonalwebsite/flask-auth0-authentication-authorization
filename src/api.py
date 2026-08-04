@@ -139,6 +139,13 @@ def post_drink(jwt):
 def update_drink(jwt, drink_id):
     body = request.get_json(silent=True) or {}
 
+    # Resolve the resource before validating the payload, so a request against
+    # an id that does not exist is a 404 whatever the body looks like.
+    drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
+
+    if drink is None:
+        abort(404)
+
     if 'title' not in body and 'recipe' not in body:
         abort(400)
 
@@ -147,11 +154,6 @@ def update_drink(jwt, drink_id):
 
     if 'recipe' in body:
         parsed_drink_recipe = validated_recipe(body['recipe'])
-
-    drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
-
-    if drink is None:
-        abort(404)
 
     try:
         if 'title' in body:
