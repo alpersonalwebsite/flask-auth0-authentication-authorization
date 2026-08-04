@@ -162,8 +162,10 @@ def post_drink(jwt):
 def update_drink(jwt, drink_id):
     body = validated_body()
 
-    # Resolve the resource before validating the payload, so a request against
-    # an id that does not exist is a 404 whatever the body looks like.
+    # Resolve the resource before validating the body's fields, so a request
+    # against an id that does not exist is a 404 whatever those fields say. A
+    # body that is not a JSON object stays a 400, because validated_body() runs
+    # first and there is nothing to interpret either way.
     drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
 
     if drink is None:
